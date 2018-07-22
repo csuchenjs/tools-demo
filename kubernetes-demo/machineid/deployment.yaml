@@ -16,12 +16,9 @@ spec:
     spec:
       containers:
       - name: unique-id
-        image: local/unique-id
-        imagePullPolicy: Never
+        image: dr.repo.net:5000/local/unique-id
         ports:
         - containerPort: 3000
         env:
         - name: MY_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
+          value: "127.0.0.1"

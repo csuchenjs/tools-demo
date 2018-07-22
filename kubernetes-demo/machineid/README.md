@@ -20,6 +20,43 @@
 
         $ sudo docker run -d -p 5000:5000 -v /opt/data/registry:/tmp/registry --name registry registry
 
+    有时候镜像放置的位置不一定是`/tmp/registry`,这时候进入registry容器查看下:
+
+        $ docker exec -ti registry sh
+        / # find / -name registry
+        /etc/docker/registry
+        /var/lib/registry
+        /var/lib/registry/docker/registry
+        /bin/registry
+
+    可知镜像放置在`/var/lib/registry`, 那么上述命令挂载卷应该改为`-v /opt/data/registry:/var/lib/registry`
+
+    但是这时候`docker push`镜像可能会失败，查看`docker logs registry | tail -20`，如果出现以下错误:
+
+        mkdir /var/lib/registry/docker: permission denied" err.message="unknown error"
+
+    那应该是SELinux问题:
+
+        $ /usr/sbin/sestatus -v
+        SELinux status:                 enabled
+        ...
+
+        $ getenforce         ##也可以用这个命令检查
+
+    那么关闭SELinux:
+
+    * 临时关闭:
+
+            $ sudo setenforce 0 ##设置SELinux 成为permissive模式, setenforce 1 设置SELinux 成为enforcing模式
+
+    * 修改配置文件(需要重启)
+
+            $ sudo vim /etc/selinux/config
+            SELINUX=enforcing ===> SELINUX=disabled             
+            $ sudo reboot
+
+   解决后，删除registry容器，重新运行上述`docker run`命令创建一个新的registry容器，然后`docker push`本地镜像即可。
+
 ## kubernetes安装
 
     $ sudo dnf install kubernetes etcd flannel

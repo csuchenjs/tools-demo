@@ -12,17 +12,19 @@ import (
 	"github.com/tatsushid/go-fastping"
 )
 
-func getIPAddr(p *fastping.Pinger, hostname string) string {
+func getIPAddr(p *fastping.Pinger, hostname string) (string, time.Duration) {
 	var address string
+	var t time.Duration
 	ra, err := net.ResolveIPAddr("ip4:icmp", hostname)
 	if err != nil {
 		fmt.Println(err)
-		return ""
+		return "", 0
 	}
 	p.AddIPAddr(ra)
 	p.OnRecv = func(addr *net.IPAddr, rtt time.Duration) {
 		address = addr.String()
-		//fmt.Printf("IP Addr: %s receive, RTT: %v\n", addr.String(), rtt)
+		t = rtt
+		//fmt.Printf("IP Addr: %s receive, RTT: %v\n", address, rtt)
 	}
 	p.OnIdle = func() {
 		//fmt.Println("finish")
@@ -32,7 +34,7 @@ func getIPAddr(p *fastping.Pinger, hostname string) string {
 		fmt.Println(err)
 	}
 	p.RemoveIPAddr(ra)
-	return address
+	return address, t
 }
 
 func readFile(filename string) []string {
@@ -84,9 +86,9 @@ func pingIPFromFile(filename string) {
 		}
 
 		fmt.Printf("Resolving %v...\t", items[0])
-		addr := getIPAddr(p, items[0])
-		fmt.Printf("ping addr: %v\n", addr)
-		writer.WriteString(items[0] + "\t" + addr + "\t" + items[len(items)-1] + "\r\n")
+		addr, rtt := getIPAddr(p, items[0])
+		fmt.Printf("ping addr: %v, time: %v\n", addr, rtt)
+		writer.WriteString(items[0] + "\t" + addr + "\t" + rtt.String() + "\t" + items[len(items)-1] + "\r\n")
 	}
 
 	err = writer.Flush()
@@ -111,8 +113,8 @@ func main() {
 		pingIPFromFile(os.Args[2])
 	} else if os.Args[1] == "-s" {
 		p := fastping.NewPinger()
-		addr := getIPAddr(p, os.Args[2])
-		fmt.Printf("IP Addr: %s receive\n", addr)
+		addr, rtt := getIPAddr(p, os.Args[2])
+		fmt.Printf("IP Addr: %s receive, time: %v\n", addr, rtt)
 	} else {
 		fmt.Println("invalid args")
 		os.Exit(-1)
